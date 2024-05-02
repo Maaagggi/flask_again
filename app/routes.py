@@ -1,6 +1,10 @@
 from flask import request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity, create_access_token
 from app import app
+import logging
+import uuid
+
+app.logger.setLevel(logging.DEBUG)
 
 data_store = {
     'users': [],
@@ -27,13 +31,13 @@ def register():
     if find_user(username):
         return jsonify({"error": "Username taken"}), 400
 
-    user_id = generate_next_id(data_store['users'])  # Assuming you still generate unique IDs
+    user_id = uuid.uuid4()
     new_user = {'username': username, 'password': password, 'uid': user_id}
     data_store['users'].append(new_user)  # Add user to the list
 
     # Print user data and data store after registration
-    print(f"Registered user: {username}, {password}")
-    print(data_store['users'])
+    app.logger.debug(f"Registered user: {username}, {password}")
+    app.logger.debug(data_store['users'])
 
     return jsonify({"message": "User registered"}), 201
 
@@ -57,8 +61,8 @@ def login():
     # Find user details using uid
     user = find_user(uid)
 
-    print(user['password'])
-    print(password)
+    app.logger.debug(user['password'])  # to check if the passwords or a match
+    app.logger.debug(password)
 
     if not user or user['password'] != password:
         return jsonify({"error": "Invalid username or password"}), 401
@@ -66,12 +70,12 @@ def login():
     access_token = create_access_token(identity=user['username'])
 
     # Print user data and data store after login
-    print(f"Logged-in user: {username}, {password}")
-    print("Updated data store:")
-    print(data_store['users'])
+    app.logger.debug(f"""
+    Logged-in user: {username}, {password}
+    Updated data store: {data_store['users']}
+    User with ID {user.get('id')} logged in successfully
+    """)
 
-    # Success message
-    print(f"User with ID {user.get('id')} logged in successfully")
     return jsonify({"access_token": access_token, "message": "Login successful"})
 
 
@@ -81,7 +85,7 @@ def create_task():
     task_data = request.get_json()
     current_user_id = get_jwt_identity()
 
-    task_id = generate_next_id(data_store['tasks'])
+    task_id = uuid.uuid4()
     new_task = {
         'id': task_id,
         'title': task_data['title'],
